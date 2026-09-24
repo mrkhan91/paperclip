@@ -16,7 +16,7 @@ import {
   updateUserSecretValueSchema,
 } from "@paperclipai/shared";
 import { validate } from "../middleware/validate.js";
-import { assertBoard, assertBoardOrAgent, assertCompanyAccess, assertSecretDefinitionAdmin, getAccessibleResource } from "./authz.js";
+import { assertBoard, assertBoardOrAgent, assertCompanyAccess, assertSecretDefinitionAdmin, getAccessibleResource, hasSecretDefinitionAdminAccess } from "./authz.js";
 import { logActivity, secretService } from "../services/index.js";
 import { createSecretProposalsService } from "../services/secret-proposals.js";
 import { getConfiguredSecretProvider } from "../secrets/configured-provider.js";
