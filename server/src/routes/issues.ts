@@ -16118,6 +16118,12 @@ export function issueRoutes(
             }
             await secretProposals.approve(issue.companyId, proposal.id, {
               resolvedByUserId,
+              // A binding that still points at a pending secret proposal
+              // returns HTTP 409 unless approve cascades. Bindings that
+              // already have a secretId leave this false.
+              cascade:
+                typeof proposal.secretProposalId === "string" &&
+                proposal.secretProposalId.length > 0,
               assertCanResolve: (lockedProposal, txDb) =>
                 assertCanResolveProposal({
                   db: txDb,
