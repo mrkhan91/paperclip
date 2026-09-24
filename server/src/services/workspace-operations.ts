@@ -4,7 +4,9 @@ import { workspaceOperations } from "@paperclipai/db";
 import type { WorkspaceOperation, WorkspaceOperationPhase, WorkspaceOperationStatus } from "@paperclipai/shared";
 import { asc, desc, eq, gte, inArray, isNull, lt, or, and } from "drizzle-orm";
 import { conflict, notFound } from "../errors.js";
+import { redactTransportCredentials } from "@paperclipai/adapter-utils/command-redaction";
 import { redactCurrentUserText, redactCurrentUserValue } from "../log-redaction.js";
+import { redactSensitiveText } from "../redaction.js";
 import { instanceSettingsService } from "./instance-settings.js";
 import { getWorkspaceOperationLogStore } from "./workspace-operation-log-store.js";
 
@@ -474,7 +476,9 @@ export function workspaceOperationService(db: Db) {
           let stderrExcerpt = "";
           const append = async (stream: "stdout" | "stderr" | "system", chunk: string | null | undefined) => {
             if (!chunk) return;
-            const sanitizedChunk = redactCurrentUserText(chunk, currentUserRedactionOptions);
+            const sanitizedChunk = redactSensitiveText(
+              redactCurrentUserText(chunk, currentUserRedactionOptions),
+            );
             if (stream === "stdout") stdoutExcerpt = appendExcerpt(stdoutExcerpt, sanitizedChunk);
             if (stream === "stderr") stderrExcerpt = appendExcerpt(stderrExcerpt, sanitizedChunk);
             await logStore.append(handle, {
@@ -711,9 +715,9 @@ export function workspaceOperationService(db: Db) {
         store: operation.logStore,
         logRef: operation.logRef,
         ...result,
-        // Workspace-operation log chunks are sanitized before append-time storage.
-        // Returning the stored chunk avoids another whole-string rewrite per poll.
-        content: result.content,
+        // Same narrow read-path gate as heartbeat run logs: historical git
+        // remotes must not be served after the write-path fix ships.
+        content: redactTransportCredentials(result.content),
       };
     },
   };

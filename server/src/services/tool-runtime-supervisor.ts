@@ -3,6 +3,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { toolAccessAuditEvents, toolRuntimeSlots } from "@paperclipai/db";
 import type { DeploymentExposure, DeploymentMode, ToolRuntimeSlotStatus } from "@paperclipai/shared";
+import { redactTransportCredentials } from "@paperclipai/adapter-utils/command-redaction";
 import { logActivity } from "./activity-log.js";
 
 const ACTIVE_SLOT_STATUSES: ToolRuntimeSlotStatus[] = ["starting", "running", "idle"];
@@ -95,7 +96,7 @@ function dateValue(value: unknown): Date | null {
 }
 
 function redactLogLine(line: string) {
-  return line
+  return redactTransportCredentials(line)
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [REDACTED]")
     .replace(/\b(sk|pk|ghp|gho|ghu|ghs|github_pat)_[A-Za-z0-9_=-]{12,}\b/g, "[REDACTED_TOKEN]")
     .replace(/\b[A-Za-z0-9+/]{32,}={0,2}\b/g, "[REDACTED_VALUE]");
