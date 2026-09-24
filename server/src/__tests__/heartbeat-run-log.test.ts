@@ -49,7 +49,7 @@ describe("compactRunLogChunk", () => {
     const fineGrained = "github_pat_11AAAAAAA0abcdefghijklmnopqrstuvwxyz";
     const basic = Buffer.from(`git:${opaque}`).toString("base64");
     const chunk = [
-      `git push -u https://${opaque}@github.com/paperclipai/paperclip.git HEAD`,
+      `remote: https://${opaque}@github.com/paperclipai/paperclip.git`,
       `fatal: unable to access 'https://x-access-token:${opaque}@github.com/GULP-GAMES/SayaSync.git/': The requested URL returned error: 403`,
       `https://${fineGrained}@github.com/org/repo.git`,
       `Authorization: token ${opaque}`,

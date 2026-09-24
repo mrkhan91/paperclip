@@ -98,7 +98,7 @@ second-line\" status=401`;
     const opaque = "opaquecompanytokenvalue1234567890abcd";
     const fineGrained = "github_pat_11AAAAAAA0abcdefghijklmnopqrstuvwxyz";
     const input = [
-      `git push -u https://${opaque}@github.com/paperclipai/paperclip.git HEAD`,
+      `remote: https://${opaque}@github.com/paperclipai/paperclip.git`,
       `https://x-access-token:${opaque}@github.com/org/repo.git`,
       `https://git:${opaque}@github.com/org/repo.git`,
       `https://${fineGrained}@github.com/org/repo.git`,
