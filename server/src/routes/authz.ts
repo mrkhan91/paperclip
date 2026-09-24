@@ -120,6 +120,19 @@ export function assertCompanyAccess(req: Request, companyId: string) {
   }
 }
 
+export function assertSecretDefinitionAdmin(req: Request, companyId: string) {
+  assertBoard(req);
+  assertCompanyAccess(req, companyId);
+  if (req.actor.source === "local_implicit" || req.actor.isInstanceAdmin) {
+    return;
+  }
+  const membership = req.actor.memberships?.find((item) => item.companyId === companyId);
+  if (membership?.status === "active" && ["owner", "admin"].includes(String(membership.membershipRole))) {
+    return;
+  }
+  throw forbidden("Company admin access required");
+}
+
 /**
  * Non-throwing access check for routes that look up a resource by id
  * before responding. Prefer this over `assertCompanyAccess` whenever the

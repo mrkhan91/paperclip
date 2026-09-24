@@ -8,7 +8,59 @@
  */
 
 const APPROVE_NEEDLE = "secretProposals.approve";
-const WINDOW_CHARS = 800;
+
+/**
+ * @param {string} source
+ * @param {number} openParen
+ * @returns {string | null}
+ */
+function thirdArgumentObject(source, openParen) {
+  let depth = 0;
+  let argIndex = 0;
+  let argStart = -1;
+  let quote = null;
+  let escape = false;
+  for (let i = openParen; i < source.length; i += 1) {
+    const ch = source[i];
+    if (quote) {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (ch === "\\") {
+        escape = true;
+        continue;
+      }
+      if (ch === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (ch === "'" || ch === "\"" || ch === "`") {
+      quote = ch;
+      continue;
+    }
+    if (ch === "(" || ch === "{" || ch === "[") {
+      depth += 1;
+      if (depth === 1 && argStart < 0) {
+        argStart = i + 1;
+      }
+      continue;
+    }
+    if (ch === ")" || ch === "}" || ch === "]") {
+      if (depth === 1 && argStart >= 0 && argIndex === 2) {
+        return source.slice(argStart, i).trim();
+      }
+      depth -= 1;
+      continue;
+    }
+    if (ch === "," && depth === 1) {
+      argIndex += 1;
+      argStart = i + 1;
+    }
+  }
+  return null;
+}
 
 /**
  * @param {string} source
@@ -27,11 +79,12 @@ export function checkConfirmAcceptCascade(source) {
       break;
     }
     sawApprove = true;
-    const window = source.slice(at, at + WINDOW_CHARS);
-    const cascadeMatch = /cascade\s*:/.exec(window);
-    const usesSecretProposalId = window.includes("secretProposalId");
-    const forcedFalse = /cascade\s*:\s*false\b/.test(window);
-    if (cascadeMatch && usesSecretProposalId && !forcedFalse) {
+    const openParen = source.indexOf("(", at + APPROVE_NEEDLE.length);
+    const argument = openParen < 0 ? null : thirdArgumentObject(source, openParen);
+    const cascadeMatch = argument ? /cascade\s*:/.exec(argument) : null;
+    const usesSecretProposalId = argument ? argument.includes("secretProposalId") : false;
+    const forcedFalse = argument ? /cascade\s*:\s*false\b/.test(argument) : false;
+    if (argument && argument.startsWith("{") && cascadeMatch && usesSecretProposalId && !forcedFalse) {
       return { ok: true, reason: "pass" };
     }
     index = at + APPROVE_NEEDLE.length;
@@ -72,6 +125,12 @@ async function main() {
         cascade: typeof proposal.secretProposalId === "string" && proposal.secretProposalId.length > 0,
       });
     `);
+    const nearbyComment = checkConfirmAcceptCascade(`
+      await secretProposals.approve(issue.companyId, proposal.id, {
+        resolvedByUserId,
+      });
+      // cascade: proposal.secretProposalId
+    `);
     const failures = [];
     if (absent.ok || absent.reason !== "cascade_absent") {
       failures.push(`pre-fix fixture expected cascade_absent, got ${absent.reason}`);
@@ -81,6 +140,9 @@ async function main() {
     }
     if (!pass.ok) {
       failures.push(`cascade expression fixture expected pass, got ${pass.reason}`);
+    }
+    if (nearbyComment.ok || nearbyComment.reason !== "cascade_absent") {
+      failures.push(`nearby comment fixture expected cascade_absent, got ${nearbyComment.reason}`);
     }
     if (failures.length > 0) {
       for (const failure of failures) {

@@ -227,6 +227,7 @@ import { createRequestPromiseMemo } from "../lib/request-promise-memo.js";
 import {
   assertBoard,
   assertCompanyAccess,
+  assertSecretDefinitionAdmin,
   getAccessibleResource,
   getActorInfo,
 } from "./authz.js";
@@ -16130,6 +16131,8 @@ export function issueRoutes(
                   actor: req.actor,
                   companyId: issue.companyId,
                   proposal: lockedProposal,
+                  assertSecretDefinitionAdmin: () =>
+                    assertSecretDefinitionAdmin(req, issue.companyId),
                 }),
             });
             await notifySecretProposalResolution({

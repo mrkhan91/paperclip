@@ -33,6 +33,17 @@ describe("QG-SECRET-BINDING-CONFIRM-CASCADE", () => {
     expect(result).toEqual({ ok: false, reason: "cascade_absent" });
   });
 
+  it("ignores cascade text that sits outside the approve argument", () => {
+    const result = checkConfirmAcceptCascade(`
+      await secretProposals.approve(issue.companyId, proposal.id, {
+        resolvedByUserId,
+      });
+      // cascade: proposal.secretProposalId
+    `);
+
+    expect(result).toEqual({ ok: false, reason: "cascade_absent" });
+  });
+
   it("passes cascade tied to the binding secretProposalId", () => {
     const result = checkConfirmAcceptCascade(`
       await secretProposals.approve(issue.companyId, proposal.id, {
