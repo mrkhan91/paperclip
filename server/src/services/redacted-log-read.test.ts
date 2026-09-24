@@ -62,6 +62,30 @@ describe("readRedactedLogContent", () => {
     expect(combined).toContain("https://***REDACTED***@github.com/org/repo.git");
   });
 
+  it("returns the file end when a tail would otherwise skip bytes appended later", async () => {
+    const token = "opaquecompanytokenvalue1234567890abcd";
+    const file = `prefix\nhttps://${token}@github.com/org/repo.git\n`;
+    const offset = file.indexOf(token) + 4;
+    const result = await readRedactedLogContent(readerFor(file), {
+      offset,
+      limitBytes: 8,
+    });
+
+    expect(result.content).not.toContain(token);
+    expect(result.content).toContain("https://***REDACTED***@github.com/org/repo.git");
+    const fileBytes = Buffer.byteLength(file);
+    const resume = result.nextOffset ?? offset + Buffer.byteLength(result.content);
+    expect(resume).toBe(fileBytes);
+
+    const appended = `${file}tail-line\n`;
+    const next = await readRedactedLogContent(readerFor(appended), {
+      offset: resume,
+      limitBytes: 64,
+    });
+    expect(next.content).toContain("tail-line");
+    expect(next.content).not.toContain(token);
+  });
+
   it("keeps a clean https URL and an ssh remote", async () => {
     const file = "see https://github.com/org/repo.git and git@github.com:org/repo.git\n";
     const result = await readRedactedLogContent(readerFor(file), { offset: 0, limitBytes: 8 });

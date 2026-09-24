@@ -75,9 +75,21 @@ export async function readRedactedLogContent(
   const closed = to > from && text.charCodeAt(to - 1) === 10;
   const atEof = eof && to >= text.length;
   if (closed || atEof) {
+    const contentStart = windowStart + byteLength(text.slice(0, from));
+    const contentEnd = windowStart + byteLength(text.slice(0, to));
+    const content = redactTransportCredentials(text.slice(from, to));
     return {
-      content: redactTransportCredentials(text.slice(from, to)),
-      nextOffset: atEof ? undefined : windowStart + byteLength(text.slice(0, to)),
+      content,
+      // Tailers that see no nextOffset do `offset + content.length`. A slice
+      // that starts before the request, or a redaction that changes length,
+      // would then skip bytes appended after this read.
+      nextOffset: resumeOffset({
+        atEof,
+        requestStart,
+        contentStart,
+        contentEnd,
+        redactedBytes: byteLength(content),
+      }),
     };
   }
 
@@ -95,8 +107,37 @@ export async function readRedactedLogContent(
   const content = redactTransportCredentials(`${completePrefix}${openLine}`);
   const consumed = openByte + byteLength(openLine);
   const extendedEof = extended.nextOffset == null && (newline === -1 || newline + 1 >= extendedText.length);
+  const contentStart = windowStart + byteLength(text.slice(0, from));
   return {
     content,
-    nextOffset: extendedEof ? undefined : consumed,
+    nextOffset: resumeOffset({
+      atEof: extendedEof,
+      requestStart,
+      contentStart,
+      contentEnd: consumed,
+      redactedBytes: byteLength(content),
+    }),
   };
+}
+
+/**
+ * Byte on the original stream where the next read should start.
+ *
+ * `undefined` means the caller is caught up: the returned text is exactly the
+ * unread suffix, so `offset + content.length` lands on EOF. Any other shape
+ * must return the real end byte. Otherwise a poller counts the rewound line
+ * prefix as new data and the next poll starts past output that arrived later.
+ */
+function resumeOffset(opts: {
+  atEof: boolean;
+  requestStart: number;
+  contentStart: number;
+  contentEnd: number;
+  redactedBytes: number;
+}): number | undefined {
+  if (!opts.atEof) return opts.contentEnd;
+  const startsAtRequest = opts.contentStart === opts.requestStart;
+  const lengthMatches = opts.redactedBytes === opts.contentEnd - opts.requestStart;
+  if (startsAtRequest && lengthMatches) return undefined;
+  return opts.contentEnd;
 }

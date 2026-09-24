@@ -120,12 +120,25 @@ second-line\" status=401`;
   });
 
   it("redacts a tokenized remote that was cut off before the at-sign", () => {
-    const opaque = "opaquecompanytokenvalue1234567890abcd";
-    const output = redactTransportCredentials(
-      `remote: https://${opaque}`,
+    const underscored = "opaque_company_token_value_1234567890abcd";
+    const overlong = "a".repeat(64);
+    const hostname = "h".repeat(20);
+    expect(hostname).toHaveLength(20);
+
+    const cutOff = redactTransportCredentials(`remote: https://${underscored}`);
+    expect(cutOff).not.toContain(underscored);
+    expect(cutOff).toContain("https://***REDACTED***");
+
+    const tooLongForDns = redactTransportCredentials(`remote: https://${overlong}`);
+    expect(tooLongForDns).not.toContain(overlong);
+    expect(tooLongForDns).toContain("https://***REDACTED***");
+
+    expect(redactTransportCredentials(`curl https://${hostname}`)).toBe(
+      `curl https://${hostname}`,
     );
-    expect(output).not.toContain(opaque);
-    expect(output).toContain("https://***REDACTED***");
+    expect(redactTransportCredentials("curl https://internal-build-host-01")).toBe(
+      "curl https://internal-build-host-01",
+    );
     expect(redactTransportCredentials("see https://github.com/org/repo.git")).toBe(
       "see https://github.com/org/repo.git",
     );

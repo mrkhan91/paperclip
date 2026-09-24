@@ -38,10 +38,10 @@ const COMMAND_AUTHORIZATION_SCHEME_RE =
 const COMMAND_URL_USERINFO_RE =
   /\b(https?:(?:\\*\/){2})([^/\s@\\]+)@/gi;
 // A range or a truncated line can end after `https://<token>` and before `@`.
-// Only an alnum/underscore userinfo is treated as a credential so a normal
-// `https://github.com/...` tail is left alone.
+// A dotted host such as `https://github.com` is left alone. A single DNS label
+// (no underscore, at most 63 characters) is also a hostname, not userinfo.
 const COMMAND_URL_OPEN_USERINFO_RE =
-  /\b(https?:(?:\\*\/){2})([A-Za-z0-9_]{20,})$/g;
+  /\b(https?:(?:\\*\/){2})([A-Za-z0-9_-]{20,})$/g;
 const COMMAND_URL_OPEN_USER_TOKEN_RE =
   /\b(https?:(?:\\*\/){2}[^/\s@\\]*:)([A-Za-z0-9_]{20,})$/g;
 const COMMAND_OPENAI_KEY_RE = /\bsk-[A-Za-z0-9_-]{12,}\b/g;
@@ -101,9 +101,17 @@ export function redactTransportCredentials(
   return text
     .replace(COMMAND_URL_USERINFO_RE, `$1${redactedValue}@`)
     .replace(COMMAND_URL_OPEN_USER_TOKEN_RE, `$1${redactedValue}`)
-    .replace(COMMAND_URL_OPEN_USERINFO_RE, `$1${redactedValue}`)
+    .replace(COMMAND_URL_OPEN_USERINFO_RE, (match, prefix: string, label: string) =>
+      isPlausibleHostnameLabel(label) ? match : `${prefix}${redactedValue}`,
+    )
     .replace(COMMAND_AUTHORIZATION_SCHEME_RE, `$1${redactedValue}`)
     .replace(COMMAND_GITHUB_TOKEN_RE, redactedValue);
+}
+
+/** DNS label: letters, digits, and hyphens, 1–63 chars, no underscore. */
+function isPlausibleHostnameLabel(label: string): boolean {
+  if (label.length < 1 || label.length > 63 || label.includes("_")) return false;
+  return /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label);
 }
 
 function maybeContainsSecretText(command: string) {
