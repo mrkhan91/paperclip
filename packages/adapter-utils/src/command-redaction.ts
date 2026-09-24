@@ -37,6 +37,13 @@ const COMMAND_AUTHORIZATION_SCHEME_RE =
   /(\bAuthorization\s*:\s*(?:Bearer|Basic|token)\s+)[^\s"'`]+/gi;
 const COMMAND_URL_USERINFO_RE =
   /\b(https?:(?:\\*\/){2})([^/\s@\\]+)@/gi;
+// A range or a truncated line can end after `https://<token>` and before `@`.
+// Only an alnum/underscore userinfo is treated as a credential so a normal
+// `https://github.com/...` tail is left alone.
+const COMMAND_URL_OPEN_USERINFO_RE =
+  /\b(https?:(?:\\*\/){2})([A-Za-z0-9_]{20,})$/g;
+const COMMAND_URL_OPEN_USER_TOKEN_RE =
+  /\b(https?:(?:\\*\/){2}[^/\s@\\]*:)([A-Za-z0-9_]{20,})$/g;
 const COMMAND_OPENAI_KEY_RE = /\bsk-[A-Za-z0-9_-]{12,}\b/g;
 const COMMAND_GITHUB_TOKEN_RE =
   /\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{16,})\b/g;
@@ -80,6 +87,8 @@ export function redactTransportCredentials(
   if (
     !text.includes("@") &&
     !lower.includes("authorization") &&
+    !lower.includes("https://") &&
+    !lower.includes("http://") &&
     !lower.includes("github_pat_") &&
     !lower.includes("ghp_") &&
     !lower.includes("gho_") &&
@@ -91,6 +100,8 @@ export function redactTransportCredentials(
   }
   return text
     .replace(COMMAND_URL_USERINFO_RE, `$1${redactedValue}@`)
+    .replace(COMMAND_URL_OPEN_USER_TOKEN_RE, `$1${redactedValue}`)
+    .replace(COMMAND_URL_OPEN_USERINFO_RE, `$1${redactedValue}`)
     .replace(COMMAND_AUTHORIZATION_SCHEME_RE, `$1${redactedValue}`)
     .replace(COMMAND_GITHUB_TOKEN_RE, redactedValue);
 }

@@ -5,6 +5,7 @@ import type { WorkspaceOperation, WorkspaceOperationPhase, WorkspaceOperationSta
 import { asc, desc, eq, gte, inArray, isNull, lt, or, and } from "drizzle-orm";
 import { conflict, notFound } from "../errors.js";
 import { redactTransportCredentials } from "@paperclipai/adapter-utils/command-redaction";
+import { readRedactedLogContent } from "./redacted-log-read.js";
 import { redactCurrentUserText, redactCurrentUserValue } from "../log-redaction.js";
 import { redactSensitiveText } from "../redaction.js";
 import { instanceSettingsService } from "./instance-settings.js";
@@ -190,7 +191,7 @@ function toWorkspaceOperation(row: WorkspaceOperationRow): WorkspaceOperation {
     heartbeatRunId: row.heartbeatRunId ?? null,
     issueId: row.issueId ?? null,
     phase: row.phase as WorkspaceOperationPhase,
-    command: row.command ?? null,
+    command: row.command ? redactTransportCredentials(row.command) : null,
     cwd: row.cwd ?? null,
     status: row.status as WorkspaceOperationStatus,
     exitCode: row.exitCode ?? null,
@@ -199,8 +200,8 @@ function toWorkspaceOperation(row: WorkspaceOperationRow): WorkspaceOperation {
     logBytes: row.logBytes ?? null,
     logSha256: row.logSha256 ?? null,
     logCompressed: row.logCompressed,
-    stdoutExcerpt: row.stdoutExcerpt ?? null,
-    stderrExcerpt: row.stderrExcerpt ?? null,
+    stdoutExcerpt: row.stdoutExcerpt ? redactTransportCredentials(row.stdoutExcerpt) : null,
+    stderrExcerpt: row.stderrExcerpt ? redactTransportCredentials(row.stderrExcerpt) : null,
     metadata: (row.metadata as Record<string, unknown> | null) ?? null,
     startedAt: row.startedAt,
     finishedAt: row.finishedAt ?? null,
@@ -702,11 +703,16 @@ export function workspaceOperationService(db: Db) {
       if (!operation) throw notFound("Workspace operation not found");
       if (!operation.logStore || !operation.logRef) throw notFound("Workspace operation log not found");
 
-      const result = await logStore.read(
-        {
-          store: operation.logStore as "local_file",
-          logRef: operation.logRef,
-        },
+      // Same whole-line read-path gate as heartbeat run logs.
+      const result = await readRedactedLogContent(
+        (range) =>
+          logStore.read(
+            {
+              store: operation.logStore as "local_file",
+              logRef: operation.logRef!,
+            },
+            range,
+          ),
         opts,
       );
 
@@ -715,9 +721,6 @@ export function workspaceOperationService(db: Db) {
         store: operation.logStore,
         logRef: operation.logRef,
         ...result,
-        // Same narrow read-path gate as heartbeat run logs: historical git
-        // remotes must not be served after the write-path fix ships.
-        content: redactTransportCredentials(result.content),
       };
     },
   };

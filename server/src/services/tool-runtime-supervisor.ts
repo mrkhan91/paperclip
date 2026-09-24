@@ -114,8 +114,22 @@ function trimLogs(
   return next;
 }
 
+export function redactStoredSlotLogs(metadata: Record<string, unknown>): Record<string, unknown> {
+  if (!Array.isArray(metadata.logs)) return metadata;
+  return {
+    ...metadata,
+    logs: metadata.logs.map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return entry;
+      const record = entry as Record<string, unknown>;
+      if (typeof record.line !== "string") return entry;
+      const line = redactLogLine(record.line);
+      return line === record.line ? entry : { ...record, line };
+    }),
+  };
+}
+
 function slotView(row: typeof toolRuntimeSlots.$inferSelect): ToolRuntimeSlotView {
-  const metadata = asRecord(row.metadata);
+  const metadata = redactStoredSlotLogs(asRecord(row.metadata));
   return {
     id: row.id,
     companyId: row.companyId,

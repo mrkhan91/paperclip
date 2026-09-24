@@ -119,6 +119,18 @@ second-line\" status=401`;
     expect(redactTransportCredentials(output)).toBe(output);
   });
 
+  it("redacts a tokenized remote that was cut off before the at-sign", () => {
+    const opaque = "opaquecompanytokenvalue1234567890abcd";
+    const output = redactTransportCredentials(
+      `remote: https://${opaque}`,
+    );
+    expect(output).not.toContain(opaque);
+    expect(output).toContain("https://***REDACTED***");
+    expect(redactTransportCredentials("see https://github.com/org/repo.git")).toBe(
+      "see https://github.com/org/repo.git",
+    );
+  });
+
   it("redacts Authorization Basic and token schemes", () => {
     const opaque = "opaquecompanytokenvalue1234567890abcd";
     const basic = Buffer.from(`git:${opaque}`).toString("base64");

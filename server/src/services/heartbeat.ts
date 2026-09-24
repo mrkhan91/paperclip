@@ -552,8 +552,8 @@ import {
   redactCurrentUserValue,
   type CurrentUserRedactionOptions,
 } from "../log-redaction.js";
-import { redactTransportCredentials } from "@paperclipai/adapter-utils/command-redaction";
 import { redactEventPayload, redactSensitiveText } from "../redaction.js";
+import { readRedactedLogContent } from "./redacted-log-read.js";
 import { createRunSecretRedactionRegistry } from "./run-secret-redaction.js";
 import {
   hasSessionCompactionThresholds,
@@ -29368,11 +29368,20 @@ export function heartbeatService(
       if (!run) throw notFound("Heartbeat run not found");
       if (!run.logStore || !run.logRef) throw notFound("Run log not found");
 
-      const result = await runLogStore.read(
-        {
-          store: run.logStore as "local_file",
-          logRef: run.logRef,
-        },
+      // Write-path redaction covers new chunks. Replay the narrow transport
+      // scanner on whole lines so a historical `https://<token>@host` remote
+      // cannot be read back, including when the caller asks for a byte range
+      // that would otherwise split the userinfo from `@`. Full JWT/JSON
+      // heuristics stay write-only.
+      const result = await readRedactedLogContent(
+        (range) =>
+          runLogStore.read(
+            {
+              store: run.logStore as "local_file",
+              logRef: run.logRef!,
+            },
+            range,
+          ),
         opts,
       );
 
@@ -29381,10 +29390,6 @@ export function heartbeatService(
         store: run.logStore,
         logRef: run.logRef,
         ...result,
-        // Write-path redaction covers new chunks. Replay the narrow transport
-        // scanner so a historical `https://<token>@host` remote cannot be read
-        // back after this gate ships. Full JWT/JSON heuristics stay write-only.
-        content: redactTransportCredentials(result.content),
       };
     },
 
