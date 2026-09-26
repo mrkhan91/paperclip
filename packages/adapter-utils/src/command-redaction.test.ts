@@ -133,6 +133,16 @@ second-line\" status=401`;
     expect(tooLongForDns).not.toContain(overlong);
     expect(tooLongForDns).toContain("https://***REDACTED***");
 
+    const opaque = "opaquecompanytokenvalue1234567890abcd";
+    const cutOffOpaque = redactTransportCredentials(`remote: https://${opaque}`);
+    expect(cutOffOpaque).not.toContain(opaque);
+    expect(cutOffOpaque).toContain("https://***REDACTED***");
+
+    const mixedCase = "OpaqueCompanyTokenValue1234567890Ab";
+    const cutOffMixed = redactTransportCredentials(`remote: https://${mixedCase}`);
+    expect(cutOffMixed).not.toContain(mixedCase);
+    expect(cutOffMixed).toContain("https://***REDACTED***");
+
     expect(redactTransportCredentials(`curl https://${hostname}`)).toBe(
       `curl https://${hostname}`,
     );

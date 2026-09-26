@@ -38,8 +38,9 @@ const COMMAND_AUTHORIZATION_SCHEME_RE =
 const COMMAND_URL_USERINFO_RE =
   /\b(https?:(?:\\*\/){2})([^/\s@\\]+)@/gi;
 // A range or a truncated line can end after `https://<token>` and before `@`.
-// A dotted host such as `https://github.com` is left alone. A single DNS label
-// (no underscore, at most 63 characters) is also a hostname, not userinfo.
+// A dotted host such as `https://github.com` is left alone. A lowercase DNS
+// label is also a hostname. A label with a digit and no hyphen is a token
+// (hex / base32 / the opaque git-remote fixture), not a hostname.
 const COMMAND_URL_OPEN_USERINFO_RE =
   /\b(https?:(?:\\*\/){2})([A-Za-z0-9_-]{20,})$/g;
 const COMMAND_URL_OPEN_USER_TOKEN_RE =
@@ -108,10 +109,17 @@ export function redactTransportCredentials(
     .replace(COMMAND_GITHUB_TOKEN_RE, redactedValue);
 }
 
-/** DNS label: letters, digits, and hyphens, 1–63 chars, no underscore. */
+/**
+ * DNS label that is safe to leave when a URL is cut off before `@`.
+ * Uppercase marks a token. A digit with no hyphen marks a token too, so
+ * `https://opaquecompanytokenvalue1234567890abcd` is redacted while
+ * `https://internal-build-host-01` and a 20-letter label stay intact.
+ */
 function isPlausibleHostnameLabel(label: string): boolean {
   if (label.length < 1 || label.length > 63 || label.includes("_")) return false;
-  return /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label);
+  if (/[A-Z]/.test(label)) return false;
+  if (/\d/.test(label) && !label.includes("-")) return false;
+  return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label);
 }
 
 function maybeContainsSecretText(command: string) {
