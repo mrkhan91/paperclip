@@ -76,11 +76,11 @@ describe("log redaction", () => {
   it("redacts an opaque git remote pasted into a comment body", () => {
     const remote = "https://opaquecompanytokenvalue1234567890abcd@github.com/acme/repo.git";
     const result = redactPersistedCommentBody(
-      `git push failed: ${remote}`,
+      `remote update failed: ${remote}`,
       { enabled: false },
     );
 
-    expect(result).toBe("git push failed: https://***REDACTED***@github.com/acme/repo.git");
+    expect(result).toBe("remote update failed: https://***REDACTED***@github.com/acme/repo.git");
     expect(result).not.toContain("opaquecompanytokenvalue1234567890abcd");
   });
 
