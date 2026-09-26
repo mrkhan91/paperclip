@@ -138,7 +138,7 @@ import {
   normalizeIssueExecutionPolicy,
 } from "./issue-execution-policy.js";
 import { instanceSettingsService } from "./instance-settings.js";
-import { redactCurrentUserText } from "../log-redaction.js";
+import { redactPersistedCommentBody } from "../log-redaction.js";
 import { redactSensitiveText } from "../redaction.js";
 import {
   resolveIssueGoalId,
@@ -6736,7 +6736,7 @@ export function issueService(db: Db) {
     return {
       ...comment,
       authorType: deriveIssueCommentAuthorType(comment),
-      body: redactCurrentUserText(comment.body, {
+      body: redactPersistedCommentBody(comment.body, {
         enabled: censorUsernameInLogs,
       }),
       presentation: issueCommentPresentationSchema
@@ -10434,7 +10434,7 @@ export function issueService(db: Db) {
             authorUserId: row.authorUserId ?? null,
             authorType: row.authorType,
             createdByRunId: null,
-            body: redactCurrentUserText(row.body, {
+            body: redactPersistedCommentBody(row.body, {
               enabled: censorUsernameInLogs,
             }),
             presentation: row.presentation ?? null,
@@ -12115,7 +12115,7 @@ export function issueService(db: Db) {
         enabled: (await instanceSettings.getGeneral({ db: dbOrTx }))
           .censorUsernameInLogs,
       };
-      const redactedBody = redactCurrentUserText(body, currentUserRedactionOptions);
+      const redactedBody = redactPersistedCommentBody(body, currentUserRedactionOptions);
       if (actor.userId && options?.clientRequestId) {
         const [existing] = await dbOrTx.select().from(issueComments).where(and(eq(issueComments.issueId, issueId),
           eq(issueComments.authorUserId, actor.userId), eq(issueComments.clientRequestId, options.clientRequestId)));

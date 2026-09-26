@@ -190,6 +190,18 @@ describe("redactSensitive", () => {
     expect(redactSensitive(body)).toEqual(body);
   });
 
+  it("redacts an opaque git remote inside a free-text log field", () => {
+    const remote = "https://opaquecompanytokenvalue1234567890abcd@github.com/acme/repo.git";
+    const out = redactSensitive({
+      message: `remote: ${remote}`,
+    }) as Record<string, unknown>;
+
+    expect(out.message).toBe(
+      "remote: https://***REDACTED***@github.com/acme/repo.git",
+    );
+    expect(JSON.stringify(out)).not.toContain("opaquecompanytokenvalue1234567890abcd");
+  });
+
   it("returns primitives unchanged", () => {
     expect(redactSensitive("hello")).toBe("hello");
     expect(redactSensitive(42)).toBe(42);

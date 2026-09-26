@@ -3,7 +3,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { approvalComments, approvals } from "@paperclipai/db";
 import { notFound, unprocessable } from "../errors.js";
-import { redactCurrentUserText } from "../log-redaction.js";
+import { redactPersistedCommentBody } from "../log-redaction.js";
 import { agentService } from "./agents.js";
 import { budgetService } from "./budgets.js";
 import { notifyHireApproved } from "./hire-hook.js";
@@ -21,7 +21,7 @@ export function approvalService(db: Db) {
   function redactApprovalComment<T extends { body: string }>(comment: T, censorUsernameInLogs: boolean): T {
     return {
       ...comment,
-      body: redactCurrentUserText(comment.body, { enabled: censorUsernameInLogs }),
+      body: redactPersistedCommentBody(comment.body, { enabled: censorUsernameInLogs }),
     };
   }
 
@@ -299,7 +299,7 @@ export function approvalService(db: Db) {
       const currentUserRedactionOptions = {
         enabled: (await instanceSettings.getGeneral()).censorUsernameInLogs,
       };
-      const redactedBody = redactCurrentUserText(body, currentUserRedactionOptions);
+      const redactedBody = redactPersistedCommentBody(body, currentUserRedactionOptions);
       return db
         .insert(approvalComments)
         .values({

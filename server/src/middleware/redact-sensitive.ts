@@ -11,6 +11,8 @@
 // objects/arrays. Caps depth so a hostile or accidental cycle can't pin
 // the logger.
 
+import { redactTransportCredentials } from "@paperclipai/adapter-utils/command-redaction";
+
 const SENSITIVE_KEYS = new Set<string>([
   // Provider setup payloads deliberately group all durable authentication
   // material under `credentials`. Redact the whole subtree instead of trying
@@ -136,6 +138,9 @@ export function stripSecretBearingUrlParts(value: string): string {
 
 export function redactSensitive(value: unknown, depth = 0): unknown {
   if (depth > MAX_DEPTH) return undefined;
+  // Free-text bodies are not URL-shaped keys. A pasted git remote in a
+  // message, error, or note must still lose its userinfo before the log line.
+  if (typeof value === "string") return redactTransportCredentials(value);
   if (value === null || typeof value !== "object") return value;
   if (Array.isArray(value)) {
     if (depth + 1 > MAX_DEPTH) return undefined;

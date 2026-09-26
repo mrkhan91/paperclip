@@ -3,6 +3,7 @@ import {
   maskUserNameForLogs,
   redactCurrentUserText,
   redactCurrentUserValue,
+  redactPersistedCommentBody,
 } from "../log-redaction.js";
 
 describe("log redaction", () => {
@@ -70,5 +71,21 @@ describe("log redaction", () => {
   it("skips redaction when disabled", () => {
     const input = "cwd=/Users/paperclipuser/paperclip";
     expect(redactCurrentUserText(input, { enabled: false })).toBe(input);
+  });
+
+  it("redacts an opaque git remote pasted into a comment body", () => {
+    const remote = "https://opaquecompanytokenvalue1234567890abcd@github.com/acme/repo.git";
+    const result = redactPersistedCommentBody(
+      `git push failed: ${remote}`,
+      { enabled: false },
+    );
+
+    expect(result).toBe("git push failed: https://***REDACTED***@github.com/acme/repo.git");
+    expect(result).not.toContain("opaquecompanytokenvalue1234567890abcd");
+  });
+
+  it("leaves an ordinary https url in a comment body", () => {
+    const input = "See https://github.com/acme/repo/pull/1";
+    expect(redactPersistedCommentBody(input, { enabled: false })).toBe(input);
   });
 });

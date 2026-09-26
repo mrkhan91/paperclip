@@ -1,4 +1,5 @@
 import os from "node:os";
+import { redactTransportCredentials } from "@paperclipai/adapter-utils/command-redaction";
 
 export const CURRENT_USER_REDACTION_TOKEN = "*";
 
@@ -127,6 +128,15 @@ export function redactCurrentUserText(input: string, opts?: CurrentUserRedaction
   }
 
   return result;
+}
+
+/**
+ * Comment and approval bodies are persisted prose. Username masking alone
+ * leaves `https://<token>@host` intact. Scan transport credentials after
+ * username masking so a pasted git remote cannot be stored or re-read.
+ */
+export function redactPersistedCommentBody(input: string, opts?: CurrentUserRedactionOptions) {
+  return redactTransportCredentials(redactCurrentUserText(input, opts));
 }
 
 export function redactCurrentUserValue<T>(value: T, opts?: CurrentUserRedactionOptions): T {
