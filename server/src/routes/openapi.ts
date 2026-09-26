@@ -3188,6 +3188,16 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
+  path: "/api/agents/me/runtime",
+  tags: ["agents"],
+  summary: "Get non-secret deploy/runtime identity for the live control plane",
+  description:
+    "Returns CalVer/package version, process start time, and optional git commit identity. Agent authentication required. No secrets or board-privileged internals.",
+  responses: { 200: r.ok(), 401: r.unauthorized },
+});
+
+registry.registerPath({
+  method: "get",
   path: "/api/agents/me/inbox-lite",
   tags: ["agents"],
   summary: "Get current agent inbox (lite)",

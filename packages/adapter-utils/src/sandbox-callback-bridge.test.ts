@@ -1378,6 +1378,7 @@ describe("sandbox callback bridge", () => {
     const allowed: Array<{ method: string; path: string }> = [
       { method: "POST", path: "/runtime-tools/github/credentials" },
       { method: "GET", path: "/api/agents/me" },
+      { method: "GET", path: "/api/agents/me/runtime" },
       { method: "GET", path: "/api/agents/me/inbox-lite" },
       { method: "GET", path: "/api/agents/me/inbox/mine" },
       { method: "GET", path: "/api/agents/agent-1" },
@@ -1455,6 +1456,8 @@ describe("sandbox callback bridge", () => {
     }
 
     const denied: Array<{ method: string; path: string }> = [
+      // Health is board/agent on control plane but not sandbox-bridged.
+      { method: "GET", path: "/api/health" },
       { method: "POST", path: "/api/companies/co-1/email/inboxes" },
       { method: "POST", path: "/api/companies/co-1/email/connections" },
       { method: "POST", path: "/api/companies/co-1/email/inspect" },

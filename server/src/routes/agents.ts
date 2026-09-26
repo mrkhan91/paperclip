@@ -61,6 +61,7 @@ import {
   writePaperclipSkillSyncPreference,
 } from "@paperclipai/adapter-utils/server-utils";
 import { trackAgentCreated } from "@paperclipai/shared/telemetry";
+import { buildAgentRuntimeIdentity } from "../agent-runtime-identity.js";
 import { validate } from "../middleware/validate.js";
 import { inheritNativeRunnerAdapterConfig } from "../services/native-runtime/native-agent-runtime-inheritance.js";
 import { agentInstructionsBundleMode } from "../services/agent-instructions.js";
@@ -4163,6 +4164,21 @@ export function agentRoutes(
       return;
     }
     res.json(await buildAgentDetail(agent));
+  });
+
+  router.get("/agents/me/runtime", async (req, res) => {
+    // Agent-only, identity-only. Sandbox bridge cannot reach /api/health
+    // (allowlist 403); this path is the auditable CalVer/deploy probe.
+    if (req.actor.type !== "agent" || !req.actor.agentId) {
+      res.status(401).json({ error: "Agent authentication required" });
+      return;
+    }
+    res.setHeader("Cache-Control", "no-store");
+    res.json(
+      buildAgentRuntimeIdentity({
+        deploymentMode: options.deploymentMode ?? null,
+      }),
+    );
   });
 
   router.get("/agents/me/inbox-lite", async (req, res) => {
